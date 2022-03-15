@@ -1,7 +1,9 @@
 import json, pprint
+import pandas as pd
 from urllib.request import urlopen, Request
 from bs4 import BeautifulSoup
-
+import matplotlib.pyplot as plt
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 finviz_url = 'https://finviz.com/quote.ashx?t='
 tickers = ['AMZN', 'FB','TSLA']
@@ -19,14 +21,35 @@ for ticker in tickers:
     news_table = html.find(id='news-table')
     news_tables[ticker] = news_table
 
-    break
+parsed_data = []
 
-amzn_data = news_tables['AMZN']
-amzn_rows = amzn_data.findAll('tr')
+for ticker, news_table in news_tables.items():
+    for row in news_table.findAll('tr'):
+        title = row.a.get_text()
+        date_data = row.td.text.split(' ')
 
-# print(json.dumps(news_tables, indent=4))
+        if len(date_data) == 1:
+            time = date_data[0]
+        else:
+            date = date_data[0]
+            time = date_data[1]
 
-for index, row in enumerate(amzn_rows):
-    title = row.a.text
-    timestamp = row.td.text
-    print(timestamp + " " + title)
+        parsed_data.append([ticker, date, time, title])
+
+df = pd.DataFrame(parsed_data, columns=['ticker', 'date', 'time', 'title'])
+
+vader = SentimentIntensityAnalyzer()
+
+f = lambda title: vader.polarity_scores(title)['compound']
+df['compound'] = df['title'].apply(f)
+df['date'] = pd.to_datetime(df.date).dt.date
+
+plt.figure(figsize=(10, 8))
+
+mean_df = df.groupby(['ticker', 'date']).mean()
+mean_df = mean_df.unstack()
+mean_df = mean_df.xs('compound', axis='columns').transpose()
+
+mean_df.plot(kind='bar')
+
+plt.show()
