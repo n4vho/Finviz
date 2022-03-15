@@ -1,8 +1,12 @@
+import json, pprint
 from urllib.request import urlopen, Request
 from bs4 import BeautifulSoup
 
+
 finviz_url = 'https://finviz.com/quote.ashx?t='
-tickers = ['AMZN', 'AMD', 'FB', 'GOOG', 'AAPL', 'TSLA']
+tickers = ['AMZN', 'FB','TSLA']
+
+news_tables = {}
 
 for ticker in tickers:
     url = finviz_url + ticker
@@ -11,8 +15,18 @@ for ticker in tickers:
     response = urlopen(req)
     print(response)
 
+    html = BeautifulSoup(response, 'html')
+    news_table = html.find(id='news-table')
+    news_tables[ticker] = news_table
+
     break
 
-    html = BeautifulSoup(response, 'html')
-    print(html)
-    break
+amzn_data = news_tables['AMZN']
+amzn_rows = amzn_data.findAll('tr')
+
+# print(json.dumps(news_tables, indent=4))
+
+for index, row in enumerate(amzn_rows):
+    title = row.a.text
+    timestamp = row.td.text
+    print(timestamp + " " + title)
